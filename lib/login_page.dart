@@ -24,9 +24,8 @@ class _LoginPageState extends State<LoginPage> {
   // Email Login
   Future<void> login() async {
     // Only trim the email, NOT the password (cleaning error fix)
-    final String email = emailController.text.trim();
+    final String email = emailController.text.trim().toLowerCase();
     final String password = passController.text;
-
     if (email.isEmpty || password.isEmpty) {
       _showSnackBar("Fields cannot be empty");
       return;
@@ -71,9 +70,8 @@ class _LoginPageState extends State<LoginPage> {
 
   // Register
   Future<void> register() async {
-    final String email = emailController.text.trim();
+    final String email = emailController.text.trim().toLowerCase();
     final String password = passController.text;
-
     if (email.isEmpty || password.isEmpty) {
       _showSnackBar("Please fill in all fields");
       return;

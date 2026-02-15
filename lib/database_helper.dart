@@ -53,19 +53,21 @@ class DatabaseHelper {
   Future<int> insertWater(int amount) async {
     final db = await instance.database;
     final now = DateTime.now();
+    // Standard YYYY-MM-DD format
+    final String dateOnly = now.toString().split(' ')[0];
+    final String timeOnly = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
     return await db.insert('water_intake', {
       'amount': amount,
-      'time': "${now.hour}:${now.minute.toString().padLeft(2, '0')}",
-      'date': "${now.year}-${now.month}-${now.day}",
+      'time': timeOnly,
+      'date': dateOnly,
     });
   }
 
-  // Fetch only today's records
+// Refined getTodayHistory
   Future<List<Map<String, dynamic>>> getTodayHistory() async {
     final db = await instance.database;
-    final now = DateTime.now();
-    final today = "${now.year}-${now.month}-${now.day}";
+    final String today = DateTime.now().toString().split(' ')[0];
 
     return await db.query(
       'water_intake',
@@ -78,14 +80,9 @@ class DatabaseHelper {
   // Reset/Delete all records for today
   Future<int> resetToday() async {
     final db = await instance.database;
-    final now = DateTime.now();
-    final today = "${now.year}-${now.month}-${now.day}";
-
-    return await db.delete(
-      'water_intake',
-      where: 'date = ?',
-      whereArgs: [today],
-    );
+    // This deletes EVERYTHING so the user starts fresh,
+    // or you can delete where date != today.
+    return await db.delete('water_intake');
   }
 // Method to save BMI/Health result
   Future<void> saveHealthResult(int age, int hAge, String risk, int colorValue) async {
@@ -111,11 +108,27 @@ class DatabaseHelper {
   }
   Future<List<Map<String, dynamic>>> getAllHealthResults() async {
     final db = await instance.database;
-    // Fetch all rows from the table
+    // 'rawQuery' or 'query' both work, but ensure you aren't closing the DB prematurely
     return await db.query('health_results', orderBy: 'id DESC');
   }
   Future close() async {
     final db = await instance.database;
     db.close();
+  }
+  // Inside DatabaseHelper class
+  Future<String?> getLastEntryDate() async {
+    final db = await instance.database;
+    // Using query() is often safer than rawQuery for simple selects
+    final List<Map<String, dynamic>> result = await db.query(
+      'water_intake',
+      columns: ['date'],
+      orderBy: 'id DESC',
+      limit: 1,
+    );
+
+    if (result.isNotEmpty) {
+      return result.first['date'] as String;
+    }
+    return null;
   }
 }

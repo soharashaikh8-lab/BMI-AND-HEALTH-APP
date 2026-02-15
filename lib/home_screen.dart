@@ -7,29 +7,41 @@ class MainDashboard extends StatefulWidget {
   const MainDashboard({super.key});
 
   @override
-  State<MainDashboard> createState() => _MainDashboardState();
+  State<MainDashboard> createState() => MainDashboardState();
 }
 
-class _MainDashboardState extends State<MainDashboard> {
+class MainDashboardState extends State<MainDashboard> {
   int _currentIndex = 0;
+  final GlobalKey<HealthAnalysisScreenState> _analysisKey = GlobalKey();
+  late List<Widget> _pages;
 
-  final List<Widget> _pages = [
-    const BMIScreen(),
-    const HealthAnalysisScreen(), // This will show the "No Data" state initially
-    const WaterTrackerScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // 3. Initialize here so the key is properly tied to this State instance
+    _pages = [
+      const BMIScreen(),
+      HealthAnalysisScreen(key: _analysisKey), // Ensure 'const' is NOT here
+      const WaterTrackerScreen(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false, // Prevents keyboard from pushing the tabs up/away
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });if (index == 1) {
+            _analysisKey.currentState?.loadData();
+          }
+        },
         selectedItemColor: Colors.teal,
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,

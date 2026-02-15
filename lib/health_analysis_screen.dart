@@ -20,10 +20,10 @@ class HealthAnalysisScreen extends StatefulWidget {
   });
 
   @override
-  State<HealthAnalysisScreen> createState() => _HealthAnalysisScreenState();
+  State<HealthAnalysisScreen> createState() => HealthAnalysisScreenState();
 }
 
-class _HealthAnalysisScreenState extends State<HealthAnalysisScreen> {
+class HealthAnalysisScreenState extends State<HealthAnalysisScreen> with WidgetsBindingObserver {
   // Local state variables to hold data fetched from SQLite
   int actualAge = 0;
   int healthAge = 0;
@@ -35,43 +35,76 @@ class _HealthAnalysisScreenState extends State<HealthAnalysisScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    WidgetsBinding.instance.addObserver(this);
+    loadData();
+  }
+  @override
+  void dispose() {
+    // 3. Unregister the observer
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
-  void _loadData() async {
-    // 1. If data was passed via constructor (Navigator.push), use it
-    if (widget.actualAge != null && widget.actualAge != 0) {
-      setState(() {
-        actualAge = widget.actualAge!;
-        healthAge = widget.healthAge!;
-        riskLevel = widget.riskLevel!;
-        riskColor = widget.riskColor!;
-        history = widget.history!;
-        isLoading = false;
-      });
-    } else {
-      // 2. Otherwise (Tab access), fetch from Database
+  // 4. Handle "App Resumed" (e.g., coming back to the app the next day)
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      loadData();
+    }
+  }
+
+  // 5. This handles refreshing when the screen is navigated back to
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Re-fetch data whenever the dependencies change (like returning to the tab)
+    loadData();
+  }
+
+  void loadData() async {
+    // Only show the full-screen spinner if we have no data yet
+    if (history.isEmpty) {
+      setState(() => isLoading = true);
+    }
+
+    try {
       final allData = await DatabaseHelper.instance.getAllHealthResults();
 
       if (allData.isNotEmpty) {
-        final latest = allData.first; // The newest record for the top cards
+        final latest = allData.first;
 
-        // Convert database rows into the string list for history
+        // Map database rows to strings
         List<String> dbHistory = allData.map((row) {
-          return "Age: ${row['actualAge']} - ${row['riskLevel']} (${row['date'].toString().substring(0, 10)})";
+          String dateStr = row['date'].toString();
+          // Handle ISO8601 or simple date strings safely
+          String displayDate = dateStr.contains("T")
+              ? dateStr.split("T")[0]
+              : (dateStr.length >= 10 ? dateStr.substring(0, 10) : dateStr);
+
+          return "Age: ${row['actualAge']} - ${row['riskLevel']} ($displayDate)";
         }).toList();
 
-        setState(() {
-          actualAge = latest['actualAge'];
-          healthAge = latest['healthAge'];
-          riskLevel = latest['riskLevel'];
-          riskColor = Color(latest['riskColorValue']);
-          history = dbHistory; // Now the history list is populated!
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            actualAge = latest['actualAge'];
+            healthAge = latest['healthAge'];
+            riskLevel = latest['riskLevel'];
+            riskColor = Color(latest['riskColorValue']);
+            history = dbHistory;
+            isLoading = false;
+          });
+        }
       } else {
-        setState(() => isLoading = false);
+        if (mounted) {
+          setState(() {
+            actualAge = 0; // Show the "No BMI Data" view
+            isLoading = false;
+          });
+        }
       }
+    } catch (e) {
+      debugPrint("Refresh Error: $e");
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -150,7 +183,7 @@ class _HealthAnalysisScreenState extends State<HealthAnalysisScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadData, // Manual refresh button
+            onPressed: loadData, // Manual refresh button
           ),
         ],
         // Only show back button if we pushed this screen, hide if it's a tab
@@ -297,7 +330,7 @@ class _HealthAnalysisScreenState extends State<HealthAnalysisScreen> {
             const SizedBox(height: 12),
             if (history.isEmpty) const Text("No history available"),
             ...history.map(
-              (e) => Padding(
+                  (e) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Row(
                   children: [

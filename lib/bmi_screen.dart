@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'database_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login_page.dart'; // Import this for navigation
+import 'package:google_sign_in/google_sign_in.dart';
 
 class BMIScreen extends StatefulWidget {
   const BMIScreen({super.key});
@@ -36,7 +37,8 @@ class _BMIScreenState extends State<BMIScreen> {
   void calculateBMI() async {
     if (heightController.text.isEmpty ||
         weightController.text.isEmpty ||
-        ageController.text.isEmpty) return;
+        ageController.text.isEmpty)
+      return;
 
     double height = double.parse(heightController.text) / 100;
     double weight = double.parse(weightController.text);
@@ -73,7 +75,10 @@ class _BMIScreenState extends State<BMIScreen> {
         healthAge = age + 10;
       }
 
-      healthHistory.insert(0, "BMI: ${bmi.toStringAsFixed(1)} ($status) at Age: $age");
+      healthHistory.insert(
+        0,
+        "BMI: ${bmi.toStringAsFixed(1)} ($status) at Age: $age",
+      );
     });
 
     await DatabaseHelper.instance.saveHealthResult(
@@ -98,15 +103,23 @@ class _BMIScreenState extends State<BMIScreen> {
           TextButton(
             onPressed: () async {
               try {
+                // 1. Clear Google session
+                final GoogleSignIn googleSignIn = GoogleSignIn();
+                if (await googleSignIn.isSignedIn()) {
+                  await googleSignIn.signOut();
+                }
+
+                // 2. Clear Firebase session
                 await FirebaseAuth.instance.signOut();
+
                 if (context.mounted) {
-                  // 1. Pop the dialog
-                  Navigator.pop(context); 
-                  
-                  // 2. Explicitly navigate to LoginPage to ensure the state clears
-                  Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => LoginPage()),
-                    (route) => false,
+                  Navigator.pop(context); // Close the dialog
+
+                  // 3. Navigate AND clear the stack
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                        (route) => false,
                   );
                 }
               } catch (e) {
@@ -125,8 +138,10 @@ class _BMIScreenState extends State<BMIScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("BMI Analytics",
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          "BMI Analytics",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.redAccent),
@@ -173,7 +188,12 @@ class _BMIScreenState extends State<BMIScreen> {
           const SizedBox(height: 15),
           _inputField(weightController, "Weight", "kg", Icons.scale_outlined),
           const SizedBox(height: 15),
-          _inputField(ageController, "Age", "yrs", Icons.calendar_month_outlined),
+          _inputField(
+            ageController,
+            "Age",
+            "yrs",
+            Icons.calendar_month_outlined,
+          ),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
@@ -183,10 +203,13 @@ class _BMIScreenState extends State<BMIScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15)),
+                  borderRadius: BorderRadius.circular(15),
+                ),
               ),
-              child: const Text("Calculate BMI",
-                  style: TextStyle(color: Colors.white, fontSize: 16)),
+              child: const Text(
+                "Calculate BMI",
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
             ),
           ),
         ],
@@ -205,19 +228,28 @@ class _BMIScreenState extends State<BMIScreen> {
       ),
       child: Column(
         children: [
-          Text(status.toUpperCase(),
-              style: TextStyle(
-                  color: riskColor,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2)),
+          Text(
+            status.toUpperCase(),
+            style: TextStyle(
+              color: riskColor,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
+            ),
+          ),
           const SizedBox(height: 10),
-          Text(bmi.toStringAsFixed(1),
-              style: const TextStyle(fontSize: 60, fontWeight: FontWeight.w900)),
-          const Text("BMI SCORE",
-              style: TextStyle(color: Colors.grey, fontSize: 12)),
+          Text(
+            bmi.toStringAsFixed(1),
+            style: const TextStyle(fontSize: 60, fontWeight: FontWeight.w900),
+          ),
+          const Text(
+            "BMI SCORE",
+            style: TextStyle(color: Colors.grey, fontSize: 12),
+          ),
           const SizedBox(height: 30),
-          const Text("Category Overview",
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            "Category Overview",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 20),
           SizedBox(
             height: 150,
@@ -227,11 +259,14 @@ class _BMIScreenState extends State<BMIScreen> {
                 barTouchData: BarTouchData(enabled: false),
                 titlesData: FlTitlesData(
                   leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
@@ -239,9 +274,13 @@ class _BMIScreenState extends State<BMIScreen> {
                         const labels = ['Under', 'Norm', 'Over', 'You'];
                         return Padding(
                           padding: const EdgeInsets.only(top: 8),
-                          child: Text(labels[value.toInt()],
-                              style: const TextStyle(
-                                  fontSize: 10, color: Colors.grey)),
+                          child: Text(
+                            labels[value.toInt()],
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey,
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -284,7 +323,10 @@ class _BMIScreenState extends State<BMIScreen> {
           width: 22,
           borderRadius: BorderRadius.circular(4),
           backDrawRodData: BackgroundBarChartRodData(
-              show: true, toY: 40, color: Colors.grey[200]),
+            show: true,
+            toY: 40,
+            color: Colors.grey[200],
+          ),
         ),
       ],
     );
@@ -301,17 +343,25 @@ class _BMIScreenState extends State<BMIScreen> {
             color: isSelected ? activeColor : Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-                color: isSelected ? activeColor : Colors.grey[300]!),
+              color: isSelected ? activeColor : Colors.grey[300]!,
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 18, color: isSelected ? Colors.white : Colors.grey),
+              Icon(
+                icon,
+                size: 18,
+                color: isSelected ? Colors.white : Colors.grey,
+              ),
               const SizedBox(width: 8),
-              Text(title,
-                  style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.grey,
-                      fontWeight: FontWeight.bold)),
+              Text(
+                title,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ),
@@ -320,7 +370,11 @@ class _BMIScreenState extends State<BMIScreen> {
   }
 
   Widget _inputField(
-      TextEditingController controller, String label, String unit, IconData icon) {
+      TextEditingController controller,
+      String label,
+      String unit,
+      IconData icon,
+      ) {
     return TextField(
       controller: controller,
       keyboardType: TextInputType.number,
@@ -331,7 +385,9 @@ class _BMIScreenState extends State<BMIScreen> {
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }
@@ -339,8 +395,10 @@ class _BMIScreenState extends State<BMIScreen> {
   Widget _dataTile(String label, String value) {
     return Column(
       children: [
-        Text(value,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
         Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
       ],
     );
